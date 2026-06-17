@@ -51,7 +51,11 @@ class SentenceTransformerEmbedder(BaseEmbedder):
         logger.info("Loading SentenceTransformer model '%s' ...", model_name)
         self._model = SentenceTransformer(model_name)
         self.name = f"sentence_transformers:{model_name}"
-        self.dimension = self._model.get_sentence_embedding_dimension()
+        # Newer sentence-transformers renamed this method; support both.
+        if hasattr(self._model, "get_embedding_dimension"):
+            self.dimension = self._model.get_embedding_dimension()
+        else:
+            self.dimension = self._model.get_sentence_embedding_dimension()
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         if not texts:

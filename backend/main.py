@@ -26,6 +26,7 @@ from fastapi import (
     File,
     HTTPException,
     Request,
+    Response,
     UploadFile,
     status,
 )
@@ -141,7 +142,7 @@ async def _unhandled_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health", tags=["system"])
 @limiter.limit(settings.RATE_LIMIT_DEFAULT)
-def health(request: Request):
+def health(request: Request, response: Response):
     """Liveness + lightweight component status for monitors and the admin page."""
     store = get_vector_store()
     try:
@@ -163,7 +164,7 @@ def health(request: Request):
 
 @app.post("/upload", tags=["documents"])
 @limiter.limit(settings.RATE_LIMIT_UPLOAD)
-async def upload(request: Request, file: UploadFile = File(...)):
+async def upload(request: Request, response: Response, file: UploadFile = File(...)):
     """
     Accept a document, validate it, and stage it on disk.
 
@@ -208,7 +209,7 @@ async def upload(request: Request, file: UploadFile = File(...)):
 
 @app.post("/ingest", tags=["documents"])
 @limiter.limit(settings.RATE_LIMIT_UPLOAD)
-def ingest(request: Request, body: IngestRequest):
+def ingest(request: Request, response: Response, body: IngestRequest):
     """Parse, chunk, embed, and store a previously uploaded file."""
     pending = _PENDING_UPLOADS.get(body.upload_id)
     if not pending:
@@ -231,7 +232,7 @@ def ingest(request: Request, body: IngestRequest):
 
 @app.post("/chat", tags=["chat"])
 @limiter.limit(settings.RATE_LIMIT_CHAT)
-def chat(request: Request, body: ChatRequest):
+def chat(request: Request, response: Response, body: ChatRequest):
     """Answer a question using RAG. Returns the answer plus source citations."""
     history = [m.model_dump() for m in body.history]
     try:
@@ -244,7 +245,7 @@ def chat(request: Request, body: ChatRequest):
 
 @app.get("/documents", tags=["documents"])
 @limiter.limit(settings.RATE_LIMIT_DEFAULT)
-def list_documents(request: Request):
+def list_documents(request: Request, response: Response):
     """List all ingested documents with chunk counts."""
     store = get_vector_store()
     return {"documents": store.list_documents(), "total_chunks": store.count()}
@@ -253,7 +254,10 @@ def list_documents(request: Request):
 @app.delete("/documents/{document_id}", tags=["documents"])
 @limiter.limit(settings.RATE_LIMIT_DEFAULT)
 def delete_document(
-    request: Request, document_id: str, _user: str = Depends(require_admin)
+    request: Request,
+    response: Response,
+    document_id: str,
+    _user: str = Depends(require_admin),
 ):
     """Delete all chunks for a document. Protected by admin Basic-Auth."""
     store = get_vector_store()
@@ -266,7 +270,7 @@ def delete_document(
 
 @app.get("/admin/stats", tags=["admin"])
 @limiter.limit(settings.RATE_LIMIT_DEFAULT)
-def admin_stats(request: Request, _user: str = Depends(require_admin)):
+def admin_stats(request: Request, response: Response, _user: str = Depends(require_admin)):
     """System overview for the admin page. Protected by admin Basic-Auth."""
     store = get_vector_store()
     docs = store.list_documents()
