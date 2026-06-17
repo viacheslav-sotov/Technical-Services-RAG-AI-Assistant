@@ -1,0 +1,50 @@
+# Local multi-service stack: API + Streamlit frontend (+ optional Ollama).
+# Usage:
+#   docker compose up --build
+#   Frontend:  http://localhost:8501
+#   API docs:  http://localhost:8000/docs
+#
+# To use the local Ollama service, uncomment the `ollama` service below and set
+# OLLAMA_BASE_URL=http://ollama:11434 in your .env.
+
+services:
+  api:
+    build: .
+    env_file: .env
+    environment:
+      SERVICE: api
+      PORT: "8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./chroma_db:/app/chroma_db
+      - hf_cache:/app/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build: .
+    env_file: .env
+    environment:
+      SERVICE: frontend
+      PORT: "8501"
+      BACKEND_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_models:/root/.ollama
+
+volumes:
+  hf_cache:
+  # ollama_models:

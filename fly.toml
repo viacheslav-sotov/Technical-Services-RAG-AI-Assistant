@@ -1,0 +1,32 @@
+# Fly.io config for the API. Run `fly launch --no-deploy` to generate an app,
+# then `fly deploy`. Set secrets with: fly secrets set OPENAI_API_KEY=... ADMIN_PASSWORD=...
+app = "tsrag-api"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  SERVICE = "api"
+  PORT = "8000"
+  ENVIRONMENT = "production"
+  EMBEDDING_PROVIDER = "sentence_transformers"
+  LLM_PROVIDER = "auto"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.checks]
+    [http_service.checks.health]
+      path = "/health"
+      interval = "30s"
+      timeout = "5s"
+
+# Persist the vector store across deploys.
+[mounts]
+  source = "tsrag_data"
+  destination = "/app/chroma_db"
